@@ -326,7 +326,10 @@ public class SettingsForm : Form
     private void OnSaveClick(object? sender, EventArgs e)
     {
         _settings.IsEnabled = _enabledCheck!.Checked;
-        _settings.SelectedPreset = (SoundPreset)_presetCombo!.SelectedItem!;
+        if (_presetCombo!.SelectedItem is SoundPreset selectedPreset)
+        {
+            _settings.SelectedPreset = selectedPreset;
+        }
         _settings.Volume = _volumeSlider!.Value / 100.0f;
         _settings.CustomSoundFolder = string.IsNullOrWhiteSpace(_customFolderText!.Text) 
             ? null 

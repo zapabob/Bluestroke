@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Bluestroke.Models;
 using Bluestroke.Services;
 
@@ -8,6 +9,9 @@ namespace Bluestroke.Forms;
 /// </summary>
 public partial class TrayApplicationContext : ApplicationContext
 {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool DestroyIcon(IntPtr handle);
+
     private readonly NotifyIcon _trayIcon;
     private readonly ContextMenuStrip _contextMenu;
     private readonly KeyboardHookService _keyboardHook;
@@ -59,18 +63,32 @@ public partial class TrayApplicationContext : ApplicationContext
         using var bitmap = new Bitmap(16, 16);
         using var g = Graphics.FromImage(bitmap);
         g.Clear(Color.FromArgb(0, 255, 255)); // Cyan background
-        g.FillRectangle(new SolidBrush(Color.FromArgb(30, 30, 30)), 2, 4, 12, 8);
-        g.DrawRectangle(new Pen(Color.FromArgb(0, 255, 255)), 2, 4, 11, 7);
+        
+        using var darkBrush = new SolidBrush(Color.FromArgb(30, 30, 30));
+        g.FillRectangle(darkBrush, 2, 4, 12, 8);
+        
+        using var cyanPen = new Pen(Color.FromArgb(0, 255, 255));
+        g.DrawRectangle(cyanPen, 2, 4, 11, 7);
         
         // Draw small "key" squares
-        var keyColor = Color.FromArgb(0, 255, 255);
-        g.FillRectangle(new SolidBrush(keyColor), 3, 5, 2, 2);
-        g.FillRectangle(new SolidBrush(keyColor), 6, 5, 2, 2);
-        g.FillRectangle(new SolidBrush(keyColor), 9, 5, 2, 2);
-        g.FillRectangle(new SolidBrush(keyColor), 4, 8, 6, 2);
+        using var keyBrush = new SolidBrush(Color.FromArgb(0, 255, 255));
+        g.FillRectangle(keyBrush, 3, 5, 2, 2);
+        g.FillRectangle(keyBrush, 6, 5, 2, 2);
+        g.FillRectangle(keyBrush, 9, 5, 2, 2);
+        g.FillRectangle(keyBrush, 4, 8, 6, 2);
 
         IntPtr hIcon = bitmap.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            // Clone the icon so we can safely destroy the original handle
+            var tempIcon = Icon.FromHandle(hIcon);
+            var clonedIcon = (Icon)tempIcon.Clone();
+            return clonedIcon;
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
     }
 
     private ContextMenuStrip CreateContextMenu()

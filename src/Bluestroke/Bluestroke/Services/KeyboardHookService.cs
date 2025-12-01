@@ -47,11 +47,12 @@ public class KeyboardHookService : IDisposable
     /// <summary>
     /// Starts listening for keyboard events.
     /// </summary>
-    public void Start()
+    /// <returns>True if the hook was successfully installed, false otherwise.</returns>
+    public bool Start()
     {
         if (_hookId != IntPtr.Zero)
         {
-            return;
+            return true; // Already running
         }
 
         using var curProcess = Process.GetCurrentProcess();
@@ -59,7 +60,15 @@ public class KeyboardHookService : IDisposable
         if (curModule != null)
         {
             _hookId = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(curModule.ModuleName), 0);
+            if (_hookId == IntPtr.Zero)
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                System.Diagnostics.Debug.WriteLine($"Failed to install keyboard hook. Error code: {errorCode}");
+                return false;
+            }
+            return true;
         }
+        return false;
     }
 
     /// <summary>

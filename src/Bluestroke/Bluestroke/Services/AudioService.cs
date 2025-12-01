@@ -253,10 +253,13 @@ internal class CachedSoundSampleProvider : ISampleProvider
 
     public int Read(float[] buffer, int offset, int count)
     {
-        var availableSamples = _cachedSound.AudioData.Length - _position;
+        var availableSamples = Math.Max(0, _cachedSound.AudioData.Length - _position);
         var samplesToCopy = Math.Min(availableSamples, count);
-        Array.Copy(_cachedSound.AudioData, _position, buffer, offset, samplesToCopy);
-        _position += samplesToCopy;
+        if (samplesToCopy > 0)
+        {
+            Array.Copy(_cachedSound.AudioData, _position, buffer, offset, samplesToCopy);
+            _position += samplesToCopy;
+        }
         return (int)samplesToCopy;
     }
 }

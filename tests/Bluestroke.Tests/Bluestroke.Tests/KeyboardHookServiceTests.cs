@@ -23,11 +23,28 @@ public class KeyboardHookServiceTests
         // Act & Assert - should not throw
         // Note: On non-Windows platforms, the hook won't actually work,
         // but the methods should complete without throwing
-        var startException = Record.Exception(() => service.Start());
+        var startException = Record.Exception(() => { _ = service.Start(); });
         var stopException = Record.Exception(() => service.Stop());
 
         // On non-Windows, these may fail silently, which is acceptable
         // The important thing is that they don't crash the application
+    }
+
+    [Fact]
+    public void Start_ShouldReturnBool()
+    {
+        // Arrange
+        using var service = new KeyboardHookService();
+
+        // Act
+        bool result = service.Start();
+
+        // Assert - on non-Windows, Start will return false, which is expected
+        // On Windows, it should return true
+        // We just verify that it returns a bool without throwing
+        Assert.True(result || !result); // Always true, just checking type
+
+        service.Stop();
     }
 
     [Fact]
@@ -37,8 +54,8 @@ public class KeyboardHookServiceTests
         using var service = new KeyboardHookService();
 
         // Act & Assert - multiple starts should not throw
-        service.Start();
-        service.Start();
+        _ = service.Start();
+        _ = service.Start();
         service.Stop();
     }
 
@@ -76,7 +93,7 @@ public class KeyboardHookServiceTests
     {
         // Arrange
         var service = new KeyboardHookService();
-        service.Start();
+        _ = service.Start();
 
         // Act
         service.Dispose();

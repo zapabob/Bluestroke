@@ -19,6 +19,8 @@ public class AudioService : IDisposable
     private string? _customSoundFolder;
     private readonly Random _random = new();
     private bool _disposed;
+    private bool _audioInitialized;
+    private string? _lastError;
 
     /// <summary>
     /// Gets or sets the volume (0.0 to 1.0).
@@ -28,6 +30,21 @@ public class AudioService : IDisposable
         get => _volume;
         set => _volume = Math.Clamp(value, 0.0f, 1.0f);
     }
+
+    /// <summary>
+    /// Gets whether audio is properly initialized.
+    /// </summary>
+    public bool IsAudioInitialized => _audioInitialized;
+
+    /// <summary>
+    /// Gets the last error message, if any.
+    /// </summary>
+    public string? LastError => _lastError;
+
+    /// <summary>
+    /// Gets the count of loaded sounds in the cache.
+    /// </summary>
+    public int LoadedSoundCount => _soundCache.Count;
 
     /// <summary>
     /// Gets or sets the current sound preset.
@@ -85,8 +102,11 @@ public class AudioService : IDisposable
     {
         if (Directory.Exists(folder))
         {
-            return Directory.GetFiles(folder, "*.wav");
+            var files = Directory.GetFiles(folder, "*.wav");
+            System.Diagnostics.Debug.WriteLine($"Found {files.Length} WAV files in {folder}");
+            return files;
         }
+        System.Diagnostics.Debug.WriteLine($"Sound folder not found: {folder}");
         return Array.Empty<string>();
     }
 
@@ -94,6 +114,14 @@ public class AudioService : IDisposable
     {
         try
         {
+            // Check if any audio output devices are available
+            if (WaveOut.DeviceCount == 0)
+            {
+                _lastError = "No audio output devices found";
+                System.Diagnostics.Debug.WriteLine(_lastError);
+                return;
+            }
+
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 2);
             _mixer = new MixingSampleProvider(waveFormat)
             {
@@ -104,11 +132,20 @@ public class AudioService : IDisposable
             _waveOut.Init(_mixer);
             _waveOut.Play();
 
+            _audioInitialized = true;
+            System.Diagnostics.Debug.WriteLine("Audio device initialized successfully");
+            
             LoadSoundsForPreset();
+        }
+        catch (NAudio.MmException ex)
+        {
+            _lastError = $"Audio device error: {ex.Message}. Result: {ex.Result}";
+            System.Diagnostics.Debug.WriteLine(_lastError);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to initialize audio device: {ex.Message}");
+            _lastError = $"Failed to initialize audio device: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(_lastError);
         }
     }
 
@@ -129,6 +166,15 @@ public class AudioService : IDisposable
             }
             else
             {
+                _lastError = $"No sound paths found for preset: {_currentPreset}";
+                System.Diagnostics.Debug.WriteLine(_lastError);
+                return;
+            }
+
+            if (paths.Length == 0)
+            {
+                _lastError = $"No sound files found for preset: {_currentPreset}";
+                System.Diagnostics.Debug.WriteLine(_lastError);
                 return;
             }
 
@@ -138,12 +184,15 @@ public class AudioService : IDisposable
                 {
                     var sound = new CachedSound(path);
                     _soundCache.Add(sound);
+                    System.Diagnostics.Debug.WriteLine($"Loaded sound: {Path.GetFileName(path)}");
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Failed to load sound {path}: {ex.Message}");
                 }
             }
+
+            System.Diagnostics.Debug.WriteLine($"Loaded {_soundCache.Count} sounds for preset: {_currentPreset}");
         }
     }
 
@@ -152,8 +201,15 @@ public class AudioService : IDisposable
     /// </summary>
     public void PlayKeySound()
     {
+        if (!_audioInitialized)
+        {
+            System.Diagnostics.Debug.WriteLine("Audio not initialized, cannot play sound");
+            return;
+        }
+
         if (_mixer == null || _soundCache.Count == 0)
         {
+            System.Diagnostics.Debug.WriteLine($"Cannot play sound: mixer={_mixer != null}, soundCache={_soundCache.Count}");
             return;
         }
 

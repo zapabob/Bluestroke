@@ -166,7 +166,8 @@ public class AudioService : IDisposable
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"No sound paths found for preset: {_currentPreset}");
+                _lastError = $"No sound paths found for preset: {_currentPreset}";
+                System.Diagnostics.Debug.WriteLine(_lastError);
                 return;
             }
 
